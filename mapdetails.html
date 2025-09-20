@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>India Map - Orphanage Branches</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <style>
+        #map { height: 600px; width: 100%; }
+        #info-panel { margin-top: 10px; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="info-panel">Click a state to see its name and capital.</div>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script>
+    // Orphanage branches (add your branches here)
+    const orphanageBranches = [
+        { name: "Branch 1", lat: 17.3753, lon: 77.8982, address: "Address 1, Telangana" },
+        { name: "Branch 2", lat: 17.5239, lon: 78.3173, address: "Address 2, Telangana" },
+        { name: "Branch 3", lat: 28.7041, lon: 77.1025, address: "Address 3, Delhi" }
+    ];
+
+    // State capitals
+    const stateCapitals = {
+        'Andhra Pradesh': 'Amaravati',
+        'Arunachal Pradesh': 'Itanagar',
+        'Assam': 'Dispur',
+        'Bihar': 'Patna',
+        'Chhattisgarh': 'Raipur',
+        'Goa': 'Panaji',
+        'Gujarat': 'Gandhinagar',
+        'Haryana': 'Chandigarh',
+        'Himachal Pradesh': 'Shimla',
+        'Jharkhand': 'Ranchi',
+        'Karnataka': 'Bengaluru',
+        'Kerala': 'Thiruvananthapuram',
+        'Madhya Pradesh': 'Bhopal',
+        'Maharashtra': 'Mumbai',
+        'Manipur': 'Imphal',
+        'Meghalaya': 'Shillong',
+        'Mizoram': 'Aizawl',
+        'Nagaland': 'Kohima',
+        'Odisha': 'Bhubaneswar',
+        'Punjab': 'Chandigarh',
+        'Rajasthan': 'Jaipur',
+        'Sikkim': 'Gangtok',
+        'Tamil Nadu': 'Chennai',
+        'Telangana': 'Hyderabad',
+        'Tripura': 'Agartala',
+        'Uttar Pradesh': 'Lucknow',
+        'Uttarakhand': 'Dehradun',
+        'West Bengal': 'Kolkata',
+        'Andaman and Nicobar Islands': 'Port Blair',
+        'Chandigarh': 'Chandigarh',
+        'Dadra and Nagar Haveli and Daman and Diu': 'Daman',
+        'Delhi': 'New Delhi',
+        'Jammu and Kashmir': 'Srinagar (Summer), Jammu (Winter)',
+        'Ladakh': 'Leh',
+        'Lakshadweep': 'Kavaratti',
+        'Puducherry': 'Puducherry'
+    };
+
+    // Map initialization
+    const map = L.map('map').setView([22.5937, 78.9629], 5);
+    const infoPanel = document.getElementById('info-panel');
+    const geojsonDataUrl = 'india_states.geojson'; // Make sure this file is present
+
+    function style(feature) {
+        return {
+            fillColor: '#FF9933', // Saffron
+            weight: 1.5,
+            opacity: 1,
+            color: 'white',
+            fillOpacity: 0.7
+        };
+    }
+
+    let geojson;
+    let previousSelectedLayer = null;
+
+    function onEachFeature(feature, layer) {
+        layer.on({
+            mouseover: function(e) {
+                e.target.setStyle({
+                    weight: 3,
+                    fillOpacity: 0.9
+                });
+                if (feature.properties && feature.properties.st_nm) {
+                    e.target.bindTooltip(feature.properties.st_nm, { permanent: false, sticky: true }).openTooltip();
+                }
+            },
+            mouseout: function(e) {
+                geojson.resetStyle(e.target);
+                if (previousSelectedLayer && previousSelectedLayer === e.target) {
+                    e.target.setStyle({ fillColor: '#008000' });
+                }
+                if (e.target.getTooltip()) {
+                    e.target.closeTooltip();
+                }
+            },
+            click: function(e) {
+                if (previousSelectedLayer) {
+                    geojson.resetStyle(previousSelectedLayer);
+                    if (previousSelectedLayer.getTooltip()) {
+                        previousSelectedLayer.closeTooltip();
+                    }
+                }
+                e.target.setStyle({ fillColor: '#008000' });
+                previousSelectedLayer = e.target;
+                if (feature.properties && feature.properties.st_nm) {
+                    const state = feature.properties.st_nm;
+                    const capital = stateCapitals[state] || 'Capital not found';
+                    infoPanel.innerHTML = `<h3>You have selected: ${state}</h3><div>Capital: ${capital}</div>`;
+                    e.target.bindTooltip(`${state}<br>Capital: ${capital}`, { permanent: false, sticky: true }).openTooltip();
+                } else {
+                    infoPanel.innerHTML = '<h3>You have selected a state, but the name property was not found.</h3>';
+                }
+                map.fitBounds(e.target.getBounds());
+            }
+        });
+    }
+
+    // Load India states GeoJSON
+    fetch(geojsonDataUrl)
+        .then(res => res.json())
+        .then(data => {
+            geojson = L.geoJSON(data, {
+                style: style,
+                onEachFeature: onEachFeature
+            }).addTo(map);
+            map.fitBounds(geojson.getBounds());
+        });
+
+    // Add orphanage branch markers
+    const markers = L.markerClusterGroup();
+    orphanageBranches.forEach(loc => {
+        const marker = L.marker([loc.lat, loc.lon]);
+        marker.bindTooltip(loc.name, { permanent: false, direction: 'right' });
+        marker.bindPopup(`<b>${loc.name}</b><br>${loc.address}`);
+        markers.addLayer(marker);
+    });
+    map.addLayer(markers);
+    </script>
+</body>
+</html>

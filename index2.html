@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>India Map - Orphanage Branches</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <style>
+        #map { height: 600px; width: 100%; }
+        #info-panel { margin-top: 10px; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <button id="show-telangana-branches">Show Telangana Branches</button>
+    <div id="info-panel">Click a state to see its name.</div>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script>
+    // Telangana orphanage branches data
+    const telanganaBranches = [
+        {
+            name: "Old aged, Disabled and Destitute Home, Kompally, Vikarabad",
+            lat: 17.3751985,
+            lon: 77.8982938,
+            district: "Vikarabad",
+            address: "Kompally, Vikarabad, Telangana",
+            photos: [] // Add photo URLs here if available
+        },
+        {
+            name: "Old age and destitute Home & School, Ameenpur Main Branch",
+            lat: 17.5235855,
+            lon: 78.3173421,
+            district: "Sangareddy",
+            address: "Ameenpur, Sangareddy, Telangana",
+            photos: []
+        },
+        {
+            name: "Ilapur Thanda Branch",
+            lat: 17.5427944,
+            lon: 78.3217053,
+            district: "Sangareddy",
+            address: "Ilapur Thanda, Sangareddy, Telangana",
+            photos: []
+        },
+        {
+            name: "Sidduloor Community Center",
+            lat: 17.3592726,
+            lon: 77.9949915,
+            district: "Vikarabad",
+            address: "Sidduloor, Vikarabad, Telangana",
+            photos: []
+        }
+    ];
+    // Mapping of state names to their capitals
+    const stateCapitals = {
+        'Andhra Pradesh': 'Amaravati',
+        'Arunachal Pradesh': 'Itanagar',
+        'Assam': 'Dispur',
+        'Bihar': 'Patna',
+        'Chhattisgarh': 'Raipur',
+        'Goa': 'Panaji',
+        'Gujarat': 'Gandhinagar',
+        'Haryana': 'Chandigarh',
+        'Himachal Pradesh': 'Shimla',
+        'Jharkhand': 'Ranchi',
+        'Karnataka': 'Bengaluru',
+        'Kerala': 'Thiruvananthapuram',
+        'Madhya Pradesh': 'Bhopal',
+        'Maharashtra': 'Mumbai',
+        'Manipur': 'Imphal',
+        'Meghalaya': 'Shillong',
+        'Mizoram': 'Aizawl',
+        'Nagaland': 'Kohima',
+        'Odisha': 'Bhubaneswar',
+        'Punjab': 'Chandigarh',
+        'Rajasthan': 'Jaipur',
+        'Sikkim': 'Gangtok',
+        'Tamil Nadu': 'Chennai',
+        'Telangana': 'Hyderabad',
+        'Tripura': 'Agartala',
+        'Uttar Pradesh': 'Lucknow',
+        'Uttarakhand': 'Dehradun',
+        'West Bengal': 'Kolkata',
+        'Andaman and Nicobar Islands': 'Port Blair',
+        'Chandigarh': 'Chandigarh',
+        'Dadra and Nagar Haveli and Daman and Diu': 'Daman',
+        'Delhi': 'New Delhi',
+        'Jammu and Kashmir': 'Srinagar (Summer), Jammu (Winter)',
+        'Ladakh': 'Leh',
+        'Lakshadweep': 'Kavaratti',
+        'Puducherry': 'Puducherry'
+    };
+    // The GeoJSON file with the state boundaries
+    const geojsonDataUrl = 'india_states.geojson';
+    // The property name for the state's name based on your file
+    const stateNameProperty = 'st_nm';
+    // Data for the locations to display on the map
+    const orphanageLocations = [
+        { name: "Srinagar", lat: 34.0836, lon: 74.7973 },
+        { name: "Hyderabad", lat: 17.3850, lon: 78.4867 },
+        { name: "Mahima Ministries Branch 1", lat: 17.375311115519064, lon: 77.89827233659041 },
+        { name: "Mahima Ministries Branch 2", lat: 17.52390264237546, lon: 78.31738500960867 },
+        { name: "Mahima Ministries Branch 3", lat: 17.523759376153624, lon: 78.31724553436287 }
+    ];
+
+    // Map initialization
+    const map = L.map('map').setView([20.5937, 78.9629], 5);
+    // Info panel
+    const infoPanel = document.getElementById('info-panel');
+    // Style for states
+    function style(feature) {
+        return {
+            fillColor: '#FF9933',
+            weight: 1.5,
+            opacity: 1,
+            color: 'white',
+            fillOpacity: 0.7
+        };
+    }
+    let geojson;
+    let previousSelectedLayer = null;
+    // Function to handle actions for each state
+    // Telangana districts layer reference
+    let telanganaDistrictsLayer = null;
+   let branchMarkers = [];
+   // Orphanage branches loaded from branches.json
+   let orphanageBranches = [];
+   
+
+    function onEachFeature(feature, layer) {
+        layer.on({
+            mouseover: function(e) {
+                e.target.setStyle({
+                    weight: 3,
+                    fillOpacity: 0.9
+                });
+                if (feature.properties && feature.properties[stateNameProperty]) {
+                    const state = feature.properties[stateNameProperty];
+                    const capital = stateCapitals[state] || 'Capital not found';
+                    e.target.bindTooltip(
+                        `<b>${state}</b><br>Capital: ${capital}`,
+                        { permanent: false, sticky: true, direction: 'top' }
+                    ).openTooltip();
+                }
+            },
+            mouseout: function(e) {
+                geojson.resetStyle(e.target);
+                if (previousSelectedLayer && previousSelectedLayer === e.target) {
+                    e.target.setStyle({ fillColor: '#008000' });
+                }
+                // Close tooltip on mouseout
+                if (e.target.getTooltip()) {
+                    e.target.closeTooltip();
+                }
+            },
+            click: function(e) {
+                if (previousSelectedLayer) {
+                    geojson.resetStyle(previousSelectedLayer);
+                    if (previousSelectedLayer.getTooltip()) {
+                        previousSelectedLayer.closeTooltip();
+                    }
+                }
+                e.target.setStyle({
+                    fillColor: '#008000'
+                });
+                previousSelectedLayer = e.target;
+                if (feature.properties && feature.properties[stateNameProperty]) {
+                    const state = feature.properties[stateNameProperty];
+                    const capital = stateCapitals[state] || 'Capital not found';
+                    infoPanel.innerHTML = `<h3>You have selected: ${state}</h3><div>Capital: ${capital}</div>`;
+                    // Show tooltip on click as well
+                    e.target.bindTooltip(
+                        `<b>${state}</b><br>Capital: ${capital}`,
+                        { permanent: false, sticky: true, direction: 'top' }
+                    ).openTooltip();
+                    // If Telangana, load districts
+                    if (state === 'Telangana') {
+                        // Remove previous districts layer if any
+                        if (telanganaDistrictsLayer) {
+                            map.removeLayer(telanganaDistrictsLayer);
+                        }
+                        fetch('telangana.geojson')
+                            .then(res => res.json())
+                            .then(districtData => {
+                                telanganaDistrictsLayer = L.geoJSON(districtData, {
+                                    style: { fillColor: '#FFD580', color: '#555', weight: 1, fillOpacity: 0.5 },
+                                    onEachFeature: function(districtFeature, districtLayer) {
+                                        districtLayer.on({
+                                            mouseover: function(ev) {
+                                                districtLayer.setStyle({ fillOpacity: 0.8 });
+                                                if (districtFeature.properties && districtFeature.properties.district) {
+                                                    districtLayer.bindTooltip(
+                                                        `<b>${districtFeature.properties.district}</b>`,
+                                                        { permanent: false, sticky: true, direction: 'top' }
+                                                    ).openTooltip();
+                                                }
+                                            },
+                                            mouseout: function(ev) {
+                                                telanganaDistrictsLayer.resetStyle(districtLayer);
+                                                if (districtLayer.getTooltip()) {
+                                                    districtLayer.closeTooltip();
+                                                }
+                                            },
+                                            click: function(ev) {
+                                                // Show orphanage branches in this district
+                                                const districtName = districtFeature.properties.district;
+                                                const branches = telanganaBranches.filter(b => b.district.toLowerCase() === districtName.toLowerCase());
+                                                if (branches.length > 0) {
+                                                    let html = `<h3>Orphanage Branches in ${districtName}</h3>`;
+                                                    branches.forEach(branch => {
+                                                        html += `<div style='margin-bottom:10px;'><b>${branch.name}</b><br>${branch.address}`;
+                                                        if (branch.photos && branch.photos.length > 0) {
+                                                            branch.photos.forEach(photo => {
+                                                                html += `<br><img src='${photo}' alt='${branch.name}' style='max-width:120px;max-height:80px;margin:2px;'>`;
+                                                            });
+                                                        }
+                                                        html += `</div>`;
+                                                    });
+                                                    L.popup()
+                                                        .setLatLng(ev.latlng)
+                                                        .setContent(html)
+                                                        .openOn(map);
+                                                } else {
+                                                    L.popup()
+                                                        .setLatLng(ev.latlng)
+                                                        .setContent(`<b>No orphanage branches found in ${districtName}.</b>`)
+                                                        .openOn(map);
+                                                }
+                                            }
+                                        });
+                                    }
+                                }).addTo(map);
+                                map.fitBounds(telanganaDistrictsLayer.getBounds());
+                            });
+                    } else {
+                        // Remove districts layer if another state is clicked
+                        if (telanganaDistrictsLayer) {
+                            map.removeLayer(telanganaDistrictsLayer);
+                            telanganaDistrictsLayer = null;
+                        }
+                    }
+                } else {
+                    infoPanel.innerHTML = '<h3>You have selected a state, but the name property was not found.</h3>';
+                }
+                map.fitBounds(e.target.getBounds());
+            }
+        });
+    }
+    // Fetch the GeoJSON data and add it to the map
+    fetch(geojsonDataUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            geojson = L.geoJSON(data, {
+                style: style,
+                onEachFeature: onEachFeature
+            }).addTo(map);
+            map.fitBounds(geojson.getBounds());
+            // Add the location markers after the map is loaded
+            addMarkersToMap();
+        })
+        .catch(error => {
+            console.error('Error loading the GeoJSON file:', error);
+            infoPanel.innerHTML = '<h3>Error loading the map. Please check the console for details.</h3>'
+            
+            ;
+        });
+    // Store marker cluster group globally for filtering
+    let markers;
+    // Telangana bounding box (approximate)
+    const telanganaBounds = {
+        north: 19.0,
+        south: 15.8,
+        east: 80.5,
+        west: 77.0
+    };
+    // Function to check if a location is in Telangana
+    function isInTelangana(lat, lon) {
+        return lat >= telanganaBounds.south && lat <= telanganaBounds.north &&
+               lon >= telanganaBounds.west && lon <= telanganaBounds.east;
+    }
+    // Function to add markers from your data using marker clustering
+    function addMarkersToMap(locations = orphanageLocations) {
+      function addMarkersToMap(locations = orphanageBranches) {
+    if (markers) {
+        map.removeLayer(markers);
+    }
+    markers = L.markerClusterGroup();
+    branchMarkers = [];
+    locations.forEach(location => {
+        const marker = L.marker([location.lat, location.lon]);
+        marker.bindTooltip(location.name, {
+            permanent: true,
+            direction: 'right',
+            offset: [15, 0]
+        }).openTooltip();
+        marker.bindPopup(`
+            <b>${location.name}</b><br>
+            ${location.address ? location.address : ''}
+        `);
+        markers.addLayer(marker);
+        branchMarkers.push({
+            name: location.name,
+            lat: location.lat,
+            lon: location.lon,
+            marker: marker,
+            address: location.address,
+            photos: location.photos || []
+        });
+    });
+    map.addLayer(markers);
+}}
+    // Add event listener for Telangana filter button (if present)
+    document.addEventListener('DOMContentLoaded', function() {
+        const btn = document.getElementById('show-telangana-branches');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                // Filter locations in Telangana
+                const filtered = orphanageLocations.filter(loc => isInTelangana(loc.lat, loc.lon));
+                addMarkersToMap(filtered);
+            });
+        }
+    });
+    </script>
+</body>
+</html>

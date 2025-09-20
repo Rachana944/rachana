@@ -1,0 +1,66 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+}
+
+.header-container {
+    text-align: center;
+    padding: 20px;
+}
+
+h1 {
+    color: #333;
+    font-size: 2em;
+    margin-bottom: 10px;
+}
+
+#info-panel {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin: 20px auto;
+    width: 80%;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+#map {
+    height: 600px;
+    width: 80%;
+    margin: 0 auto;
+    border: 1px solid #ccc;
+}
+
+/* Style for the map's states */
+.leaflet-interactive {
+    fill: #FF9933;
+    stroke: #ffffff;
+    stroke-width: 1.5;
+    opacity: 0.9;
+}
+
+/* Hover effect */
+.leaflet-interactive:hover {
+    fill: #e68a00;
+    opacity: 1;
+}
+
+/* Style for the clicked state */
+.clicked-state {
+    fill: #008000;
+    opacity: 1;
+}
+
+/* Style for the location markers' labels */
+.leaflet-tooltip.leaflet-tooltip-right,
+.leaflet-tooltip.leaflet-tooltip-left {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+    padding: 0;
+    white-space: nowrap;
+}
